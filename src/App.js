@@ -1037,21 +1037,68 @@ function AlertsView({ alertRules, setAlertRules, triggeredAlerts, monitored, COL
 }
 
 /* ---------------- NOTÍCIAS ---------------- */
-function NewsView({ COLORS, panelBorder, scale }) {
-  return (
-    <Card style={{ padding: 24, textAlign: "center" }}>
-      <Newspaper size={36} color={COLORS.gold} style={{ marginBottom: 10 }} />
-      <h3 style={{ margin: "0 0 8px" }}>📰 Notícias — configuração pendente</h3>
-      <p style={{ color: COLORS.sub, maxWidth: 520, margin: "0 auto", fontSize: 13 }}>
-        Para evitar inventar notícias, esta seção só é exibida com uma fonte real conectada.
-        Cadastre uma chave gratuita ou paga de um provedor como CryptoPanic, CryptoCompare News ou NewsAPI
-        e conecte o endpoint aqui — cada notícia será classificada automaticamente como 🟢 positiva, 🟡 incerta ou 🔴 negativa, sempre com a fonte original visível.
-      </p>
-    </Card>
-  );
-}
-
-/* ---------------- CONVERSOR ---------------- */
+  function NewsView({ COLORS, panelBorder, scale }) {
+    const [news, setNews] = useState(null);
+    const [error, setError] = useState(false);
+  
+    useEffect(() => {
+      fetch("https://cryptocurrency.cv/api/news?limit=20")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.articles) setNews(data.articles);
+          else setError(true);
+        })
+        .catch(() => setError(true));
+    }, []);
+  
+    const classify = (text) => {
+      const t = (text || "").toLowerCase();
+      const positive = ["surge", "rally", "high", "gain", "bull", "adoption", "approve", "approves", "record", "soar", "partnership", "upgrade", "launch"];
+      const negative = ["crash", "hack", "hacked", "ban", "fraud", "lawsuit", "decline", "drop", "bear", "sell-off", "exploit", "delay", "warning", "plunge", "outflow"];
+      const pos = positive.some((w) => t.includes(w));
+      const neg = negative.some((w) => t.includes(w));
+      if (pos && !neg) return "green";
+      if (neg && !pos) return "red";
+      return "yellow";
+    };
+  
+    if (error) {
+      return (
+        <Card style={{ padding: 24, textAlign: "center" }}>
+          <Newspaper size={36} color={COLORS.gold} style={{ marginBottom: 10 }} />
+          <h3 style={{ margin: "0 0 8px" }}>📰 Notícias — indisponível no momento</h3>
+          <p style={{ color: COLORS.sub, maxWidth: 520, margin: "0 auto", fontSize: 13 }}>
+            Não conseguimos buscar notícias reais agora. Tente novamente mais tarde — nunca exibimos notícias inventadas.
+          </p>
+        </Card>
+      );
+    }
+    if (!news) {
+      return <Card style={{ padding: 24, textAlign: "center", color: COLORS.sub }}>Carregando notícias...</Card>;
+    }
+  
+    const emoji = { green: "🟢", yellow: "🟡", red: "🔴" };
+  
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {news.map((n, i) => {
+          const s = classify(`${n.title} ${n.description || ""}`);
+          return (
+            <Card key={i} style={{ padding: 14 }}>
+              <div style={{ fontSize: 13, marginBottom: 4 }}>{emoji[s]} {n.title}</div>
+              <div style={{ fontSize: 11, color: COLORS.sub }}>
+                {n.source || "Fonte"} · {n.timeAgo || (n.pubDate ? new Date(n.pubDate).toLocaleString("pt-BR") : "")} ·{" "}
+                <a href={n.link} target="_blank" rel="noreferrer" style={{ color: COLORS.gold }}>Ler fonte ↗</a>
+              </div>
+            </Card>
+          );
+        })}
+        <p style={{ color: COLORS.sub, fontSize: 11, marginTop: 4 }}>
+          Classificação 🟢🟡🔴 automática por palavras-chave do título — não é análise profissional. Notícias via cryptocurrency.cv.
+        </p>
+      </div>
+    );
+  }
 function ConverterView({ enriched, usdbrl, COLORS, panelBorder, scale }) {
   const [amount, setAmount] = useState(1);
   const [from, setFrom] = useState("USD");
